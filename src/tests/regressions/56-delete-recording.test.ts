@@ -46,6 +46,31 @@ vi.mock("@/lib/auth", () => ({
     },
 }));
 
+// Routes go through requireApiSession (auth + suspension check) which
+// throws AppError on failure. The tests reuse the same
+// `auth.api.getSession` mock and forward through here. Suspension is
+// treated as never-set in these regression tests; admin-side behavior
+// is covered by src/tests/admin/*.
+vi.mock("@/lib/auth-server", async () => {
+    const { auth } = await import("@/lib/auth");
+    const { AppError, ErrorCode } = await import("@/lib/errors");
+    return {
+        requireApiSession: async (request: Request) => {
+            const session = await auth.api.getSession({
+                headers: request.headers,
+            });
+            if (!session?.user) {
+                throw new AppError(
+                    ErrorCode.AUTH_SESSION_MISSING,
+                    "Unauthorized",
+                    401,
+                );
+            }
+            return session;
+        },
+    };
+});
+
 vi.mock("@/lib/plaud/client-factory", () => ({
     createPlaudClient: vi.fn(),
 }));

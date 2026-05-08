@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireApiSession } from "@/lib/auth-server";
 import { AppError, apiHandler, ErrorCode } from "@/lib/errors";
 import { plaudSendCode } from "@/lib/plaud/auth";
 
@@ -17,13 +17,7 @@ import { plaudSendCode } from "@/lib/plaud/auth";
  * Source: https://github.com/openplaud/openplaud/blob/main/src/app/api/plaud/auth/send-code/route.ts
  */
 export const POST = apiHandler(async (request: Request) => {
-    const session = await auth.api.getSession({
-        headers: request.headers,
-    });
-
-    if (!session?.user) {
-        throw new AppError(ErrorCode.AUTH_SESSION_MISSING, "Unauthorized", 401);
-    }
+    await requireApiSession(request);
 
     // Tolerate malformed / null bodies: bad JSON from a client is a 400
     // input error, not a 500 server error. Without the catch,

@@ -2,19 +2,13 @@ import { and, eq, isNull } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { recordings, transcriptions } from "@/db/schema";
-import { auth } from "@/lib/auth";
+import { requireApiSession } from "@/lib/auth-server";
 import { decryptText } from "@/lib/encryption/fields";
-import { AppError, apiHandler, ErrorCode } from "@/lib/errors";
+import { apiHandler } from "@/lib/errors";
 
 // POST - Create a backup of all user data
 export const POST = apiHandler(async (request: Request) => {
-    const session = await auth.api.getSession({
-        headers: request.headers,
-    });
-
-    if (!session?.user) {
-        throw new AppError(ErrorCode.AUTH_SESSION_MISSING, "Unauthorized", 401);
-    }
+    const session = await requireApiSession(request);
 
     // Get all recordings for user
     const userRecordings = await db

@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { apiCredentials } from "@/db/schema";
 import { validateAiBaseUrl } from "@/lib/ai/validate-base-url";
-import { auth } from "@/lib/auth";
+import { requireApiSession } from "@/lib/auth-server";
 import { encrypt } from "@/lib/encryption";
 import { env } from "@/lib/env";
 import { AppError, apiHandler, ErrorCode } from "@/lib/errors";
@@ -12,13 +12,7 @@ type IdContext = { params: Promise<{ id: string }> };
 
 // PUT - Update AI provider
 export const PUT = apiHandler<IdContext>(async (request, context) => {
-    const session = await auth.api.getSession({
-        headers: request.headers,
-    });
-
-    if (!session?.user) {
-        throw new AppError(ErrorCode.AUTH_SESSION_MISSING, "Unauthorized", 401);
-    }
+    const session = await requireApiSession(request);
 
     const { id } = await (context as IdContext).params;
     const {
@@ -122,13 +116,7 @@ export const PUT = apiHandler<IdContext>(async (request, context) => {
 
 // DELETE - Remove AI provider
 export const DELETE = apiHandler<IdContext>(async (request, context) => {
-    const session = await auth.api.getSession({
-        headers: request.headers,
-    });
-
-    if (!session?.user) {
-        throw new AppError(ErrorCode.AUTH_SESSION_MISSING, "Unauthorized", 401);
-    }
+    const session = await requireApiSession(request);
 
     const { id } = await (context as IdContext).params;
 

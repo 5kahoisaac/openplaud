@@ -5,7 +5,7 @@ import { nanoid } from "nanoid";
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { recordings } from "@/db/schema";
-import { auth } from "@/lib/auth";
+import { requireApiSession } from "@/lib/auth-server";
 import { encryptText } from "@/lib/encryption/fields";
 import { env } from "@/lib/env";
 import { AppError, apiHandler, ErrorCode } from "@/lib/errors";
@@ -52,13 +52,7 @@ async function getAudioDurationMs(
 }
 
 export const POST = apiHandler(async (request: Request) => {
-    const session = await auth.api.getSession({
-        headers: request.headers,
-    });
-
-    if (!session?.user) {
-        throw new AppError(ErrorCode.AUTH_SESSION_MISSING, "Unauthorized", 401);
-    }
+    const session = await requireApiSession(request);
 
     const formData = await request.formData();
     const fileEntry = formData.get("file");

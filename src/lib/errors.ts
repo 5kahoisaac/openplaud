@@ -28,6 +28,7 @@ export enum ErrorCode {
     // Auth ------------------------------------------------------------------
     UNAUTHORIZED = "UNAUTHORIZED",
     FORBIDDEN = "FORBIDDEN",
+    ACCOUNT_SUSPENDED = "ACCOUNT_SUSPENDED",
     SESSION_EXPIRED = "SESSION_EXPIRED",
     AUTH_SESSION_MISSING = "AUTH_SESSION_MISSING",
     AUTH_SESSION_EXPIRED = "AUTH_SESSION_EXPIRED",

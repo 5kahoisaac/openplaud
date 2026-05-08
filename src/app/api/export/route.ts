@@ -2,19 +2,13 @@ import { and, eq, isNull } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { recordings, transcriptions, userSettings } from "@/db/schema";
-import { auth } from "@/lib/auth";
+import { requireApiSession } from "@/lib/auth-server";
 import { decryptText } from "@/lib/encryption/fields";
 import { AppError, apiHandler, ErrorCode } from "@/lib/errors";
 
 // GET - Export recordings in specified format
 export const GET = apiHandler(async (request: Request) => {
-    const session = await auth.api.getSession({
-        headers: request.headers,
-    });
-
-    if (!session?.user) {
-        throw new AppError(ErrorCode.AUTH_SESSION_MISSING, "Unauthorized", 401);
-    }
+    const session = await requireApiSession(request);
 
     const { searchParams } = new URL(request.url);
     // Read the raw query param (may be null) so the user-settings

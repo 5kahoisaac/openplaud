@@ -55,6 +55,30 @@ vi.mock("@/lib/auth", () => ({
     },
 }));
 
+// Routes use requireApiSession from auth-server (suspension-aware,
+// throws AppError on failure). Forward the existing
+// auth.api.getSession mock through it so test setups keep working
+// without each test having to add suspension fixtures.
+vi.mock("@/lib/auth-server", async () => {
+    const { auth } = await import("@/lib/auth");
+    const { AppError, ErrorCode } = await import("@/lib/errors");
+    return {
+        requireApiSession: async (request: Request) => {
+            const session = await auth.api.getSession({
+                headers: request.headers,
+            });
+            if (!session?.user) {
+                throw new AppError(
+                    ErrorCode.AUTH_SESSION_MISSING,
+                    "Unauthorized",
+                    401,
+                );
+            }
+            return session;
+        },
+    };
+});
+
 import { POST } from "@/app/api/plaud/auth/connect-token/route";
 import { db } from "@/db";
 import { auth } from "@/lib/auth";

@@ -15,7 +15,7 @@ import {
     getSummaryPromptById,
     type SummaryPromptConfiguration,
 } from "@/lib/ai/summary-presets";
-import { auth } from "@/lib/auth";
+import { requireApiSession } from "@/lib/auth-server";
 import { decrypt } from "@/lib/encryption";
 import {
     decryptJsonField,
@@ -29,13 +29,7 @@ type IdContext = { params: Promise<{ id: string }> };
 
 // POST - Generate summary
 export const POST = apiHandler<IdContext>(async (request, context) => {
-    const session = await auth.api.getSession({
-        headers: request.headers,
-    });
-
-    if (!session?.user) {
-        throw new AppError(ErrorCode.AUTH_SESSION_MISSING, "Unauthorized", 401);
-    }
+    const session = await requireApiSession(request);
 
     const { id } = await (context as IdContext).params;
     const body = await request.json().catch(() => ({}));
@@ -344,13 +338,7 @@ export const POST = apiHandler<IdContext>(async (request, context) => {
 
 // GET - Fetch existing summary
 export const GET = apiHandler<IdContext>(async (request, context) => {
-    const session = await auth.api.getSession({
-        headers: request.headers,
-    });
-
-    if (!session?.user) {
-        throw new AppError(ErrorCode.AUTH_SESSION_MISSING, "Unauthorized", 401);
-    }
+    const session = await requireApiSession(request);
 
     const { id } = await (context as IdContext).params;
 
@@ -383,13 +371,7 @@ export const GET = apiHandler<IdContext>(async (request, context) => {
 
 // DELETE - Remove summary
 export const DELETE = apiHandler<IdContext>(async (request, context) => {
-    const session = await auth.api.getSession({
-        headers: request.headers,
-    });
-
-    if (!session?.user) {
-        throw new AppError(ErrorCode.AUTH_SESSION_MISSING, "Unauthorized", 401);
-    }
+    const session = await requireApiSession(request);
 
     const { id } = await (context as IdContext).params;
 

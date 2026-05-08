@@ -1,20 +1,10 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import { AppError, apiHandler, ErrorCode } from "@/lib/errors";
+import { requireApiSession } from "@/lib/auth-server";
+import { apiHandler } from "@/lib/errors";
 import { syncRecordingsForUser } from "@/lib/sync/sync-recordings";
 
 export const POST = apiHandler(async (request: Request) => {
-    const session = await auth.api.getSession({
-        headers: request.headers,
-    });
-
-    if (!session?.user) {
-        throw new AppError(
-            ErrorCode.AUTH_SESSION_MISSING,
-            "You must be logged in to sync recordings",
-            401,
-        );
-    }
+    const session = await requireApiSession(request);
 
     const result = await syncRecordingsForUser(session.user.id);
 

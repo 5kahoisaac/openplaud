@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { OpenAI } from "openai";
 import { db } from "@/db";
 import { apiCredentials, recordings, transcriptions } from "@/db/schema";
-import { auth } from "@/lib/auth";
+import { requireApiSession } from "@/lib/auth-server";
 import { decrypt } from "@/lib/encryption";
 import { decryptText, encryptText } from "@/lib/encryption/fields";
 import { AppError, apiHandler, ErrorCode } from "@/lib/errors";
@@ -16,13 +16,7 @@ import {
 type IdContext = { params: Promise<{ id: string }> };
 
 export const POST = apiHandler<IdContext>(async (request, context) => {
-    const session = await auth.api.getSession({
-        headers: request.headers,
-    });
-
-    if (!session?.user) {
-        throw new AppError(ErrorCode.AUTH_SESSION_MISSING, "Unauthorized", 401);
-    }
+    const session = await requireApiSession(request);
 
     const { id } = await (context as IdContext).params;
     const body = await request.json().catch(() => ({}));

@@ -2,7 +2,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { aiEnhancements, recordings, transcriptions } from "@/db/schema";
-import { auth } from "@/lib/auth";
+import { requireApiSession } from "@/lib/auth-server";
 import { decryptText } from "@/lib/encryption/fields";
 import { AppError, apiHandler, ErrorCode } from "@/lib/errors";
 import { createUserStorageProvider } from "@/lib/storage/factory";
@@ -10,13 +10,7 @@ import { createUserStorageProvider } from "@/lib/storage/factory";
 type IdContext = { params: Promise<{ id: string }> };
 
 export const GET = apiHandler<IdContext>(async (request, context) => {
-    const session = await auth.api.getSession({
-        headers: request.headers,
-    });
-
-    if (!session?.user) {
-        throw new AppError(ErrorCode.AUTH_SESSION_MISSING, "Unauthorized", 401);
-    }
+    const session = await requireApiSession(request);
 
     const { id } = await (context as IdContext).params;
 
@@ -127,13 +121,7 @@ function isStorageNotFoundError(error: unknown): boolean {
  * Plaud's servers — Plaud remains the upstream source of truth.
  */
 export const DELETE = apiHandler<IdContext>(async (request, context) => {
-    const session = await auth.api.getSession({
-        headers: request.headers,
-    });
-
-    if (!session?.user) {
-        throw new AppError(ErrorCode.AUTH_SESSION_MISSING, "Unauthorized", 401);
-    }
+    const session = await requireApiSession(request);
 
     const { id } = await (context as IdContext).params;
     const userId = session.user.id;

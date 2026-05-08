@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { plaudConnections } from "@/db/schema";
-import { auth } from "@/lib/auth";
+import { requireApiSession } from "@/lib/auth-server";
 import { AppError, apiHandler, ErrorCode } from "@/lib/errors";
 import { createPlaudClient } from "@/lib/plaud/client-factory";
 import { serverKeyFromApiBase } from "@/lib/plaud/servers";
@@ -17,13 +17,7 @@ export const GET = apiHandler(async (request: Request) => {
         throw new AppError(ErrorCode.NOT_FOUND, "Not found", 404);
     }
 
-    const session = await auth.api.getSession({
-        headers: request.headers,
-    });
-
-    if (!session?.user) {
-        throw new AppError(ErrorCode.AUTH_SESSION_MISSING, "Unauthorized", 401);
-    }
+    const session = await requireApiSession(request);
 
     const [connection] = await db
         .select()

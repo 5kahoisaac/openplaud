@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireApiSession } from "@/lib/auth-server";
 import { AppError, apiHandler, ErrorCode } from "@/lib/errors";
 import {
     decodeAccessTokenExpiry,
@@ -27,13 +27,7 @@ import { isValidPlaudApiUrl } from "@/lib/plaud/servers";
  * Source: https://github.com/openplaud/openplaud/blob/main/src/app/api/plaud/auth/connect-token/route.ts
  */
 export const POST = apiHandler(async (request: Request) => {
-    const session = await auth.api.getSession({
-        headers: request.headers,
-    });
-
-    if (!session?.user) {
-        throw new AppError(ErrorCode.AUTH_SESSION_MISSING, "Unauthorized", 401);
-    }
+    const session = await requireApiSession(request);
 
     const body = (await request.json().catch(() => null)) as {
         accessToken?: unknown;
