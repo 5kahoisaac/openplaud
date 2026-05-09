@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-05-09
+
+### Fixed
+- Bundle `scripts/encrypt-backfill.ts` into the Docker image as `/app/encrypt-backfill.js`. v0.4.0 shipped the script in source but never copied it into the runtime image, and the runtime image has no `node_modules`, so self-host operators had no way to run the encryption-at-rest backfill from a deployed container. Run via `docker compose exec app bun encrypt-backfill.js [--dry-run]`. Docs in [docs/encryption-at-rest.md](docs/encryption-at-rest.md) updated.
+- Add missing migration for the v0.4.0 admin schema. v0.4.0 added `admin_audit_log`, `admin_action_log`, `users.suspended_at`, and `users.suspended_reason` to `src/db/schema.ts` but shipped without a generated SQL migration, so `pnpm db:migrate` was a no-op and `requireAuth()` — which now reads `users.suspended_at` on every authenticated request — would have errored on `column does not exist` immediately after cutover. v0.4.1 ships the additive migration (`0018_quick_joshua_kane.sql`). **Do not deploy v0.4.0; deploy v0.4.1.**
+
 ## [0.4.0] - 2026-05-09
 
 ### Added
@@ -101,7 +107,8 @@
 - Environment variable validation
 - Path traversal protection
 
-[unreleased]: https://github.com/openplaud/openplaud/compare/v0.4.0...HEAD
+[unreleased]: https://github.com/openplaud/openplaud/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/openplaud/openplaud/releases/tag/v0.4.1
 [0.4.0]: https://github.com/openplaud/openplaud/releases/tag/v0.4.0
 [0.3.0]: https://github.com/openplaud/openplaud/releases/tag/v0.3.0
 [0.2.0]: https://github.com/openplaud/openplaud/releases/tag/v0.2.0
