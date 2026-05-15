@@ -52,6 +52,49 @@ interface SyncStatus {
 }
 
 const STORAGE_KEY = "openplaud_last_sync";
+/**
+ * Cross-tab in-flight stamp. Multiple browser tabs running this hook will
+ * each try to sync on mount / visibility-change; without coordination they
+ * fan out into N concurrent server calls, each of which on hosted is one
+ * round-trip through the Webshare residential proxy. The first tab to start
+ * a sync writes `{ startedAt }` here; sibling tabs see a recent stamp and
+ * skip their own call. Self-expiring after IN_FLIGHT_TTL_MS so a crashed
+ * tab can't permanently block sync for the rest.
+ */
+const IN_FLIGHT_KEY = "openplaud_sync_in_progress";
+const IN_FLIGHT_TTL_MS = 90_000;
+/** Floor between manual button taps. Stops rage-clicking before it hits the API. */
+const MANUAL_MIN_INTERVAL_MS = 5_000;
+
+function readInFlightStamp(): number | null {
+    try {
+        const raw = localStorage.getItem(IN_FLIGHT_KEY);
+        if (!raw) return null;
+        const parsed = Number.parseInt(raw, 10);
+        if (!Number.isFinite(parsed)) return null;
+        if (Date.now() - parsed > IN_FLIGHT_TTL_MS) return null;
+        return parsed;
+    } catch {
+        // SSR / private mode / storage quota — fall through to no-stamp.
+        return null;
+    }
+}
+
+function writeInFlightStamp(): void {
+    try {
+        localStorage.setItem(IN_FLIGHT_KEY, Date.now().toString());
+    } catch {
+        // Ignore — best-effort cross-tab signal.
+    }
+}
+
+function clearInFlightStamp(): void {
+    try {
+        localStorage.removeItem(IN_FLIGHT_KEY);
+    } catch {
+        // Ignore.
+    }
+}
 
 export function useAutoSync(options: UseAutoSyncOptions = {}) {
     const {
@@ -100,15 +143,38 @@ export function useAutoSync(options: UseAutoSyncOptions = {}) {
                 return;
             }
 
+            const now = Date.now();
+
             if (silent) {
-                const now = Date.now();
                 const timeSinceLastSync = now - lastSyncTimeRef.current;
                 if (timeSinceLastSync < minInterval) {
                     return;
                 }
+            } else {
+                // Manual taps also honor a small floor so a rage-click
+                // can't shovel duplicate jobs at the proxy. The server
+                // rate limit (PLAUD_SYNC_RATE_LIMIT_PER_MINUTE) is the
+                // hard cap; this is the friendly client-side gate.
+                const timeSinceLastSync = now - lastSyncTimeRef.current;
+                if (timeSinceLastSync < MANUAL_MIN_INTERVAL_MS) {
+                    const waitSeconds = Math.ceil(
+                        (MANUAL_MIN_INTERVAL_MS - timeSinceLastSync) / 1000,
+                    );
+                    onErrorRef.current?.(
+                        `Just synced. Try again in ${waitSeconds}s.`,
+                    );
+                    return;
+                }
+            }
+
+            // Cross-tab coordination: if another tab in this browser is
+            // mid-sync, skip. Stamp self-expires after IN_FLIGHT_TTL_MS.
+            if (readInFlightStamp() !== null) {
+                return;
             }
 
             isSyncingRef.current = true;
+            writeInFlightStamp();
             setStatus((prev) => ({ ...prev, isAutoSyncing: true }));
 
             try {
@@ -121,6 +187,21 @@ export function useAutoSync(options: UseAutoSyncOptions = {}) {
                     const syncTime = new Date();
                     lastSyncTimeRef.current = syncTime.getTime();
                     localStorage.setItem(STORAGE_KEY, syncTime.toISOString());
+
+                    // Server coalesced this into a same-process in-flight
+                    // run. No new data was fetched on our behalf; render
+                    // as a quiet no-op so we don't double-toast or refresh.
+                    if (result.inProgress) {
+                        setStatus((prev) => ({
+                            ...prev,
+                            lastSyncTime: syncTime,
+                            lastSyncResult: {
+                                success: true,
+                                newRecordings: 0,
+                            },
+                        }));
+                        return;
+                    }
 
                     setStatus((prev) => ({
                         ...prev,
@@ -173,6 +254,7 @@ export function useAutoSync(options: UseAutoSyncOptions = {}) {
                 }
             } finally {
                 isSyncingRef.current = false;
+                clearInFlightStamp();
                 setStatus((prev) => ({
                     ...prev,
                     isAutoSyncing: false,
